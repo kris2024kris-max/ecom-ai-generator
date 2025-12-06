@@ -1,0 +1,17 @@
+// 简单的会话模型
+model Conversation {
+  id        String    @id @default(cuid())
+  createdAt DateTime  @default(now())
+  title     String?   // 商品名称作为会话标题
+  messages  Message[] // 一对多：一个会话有多条消息
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  role           String       // "user" | "assistant"
+  content        String       // 文本内容
+  messageType    String       // "text" | "image_upload" | "generated_assets"
+  metaData       Json?        // 存储生成的 JSON 结构数据 (标题, 卖点等)
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+}
