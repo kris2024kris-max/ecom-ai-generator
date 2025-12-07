@@ -22,8 +22,8 @@
  */
 
 'use client'
-import { useEffect, useMemo, useState } from 'react'
-import type { Message, Assets } from '@/types'
+import { useEffect, useMemo, useState, useCallback } from 'react'
+import type { Message, Assets, Conversation } from '@/types'
 import { getJson, postJson } from '@/lib/http'
 
 /**
@@ -44,6 +44,10 @@ export interface UseChatReturn {
   send: (text: string) => Promise<void>
   /** 最后一次生成的素材数据 */
   lastAssets: Assets | undefined
+  /** 切换会话的函数 */
+  switchConversation: (conversationId: string) => Promise<void>
+  /** 创建新会话的函数 */
+  createNewConversation: () => Promise<void>
 }
 
 /**
@@ -67,31 +71,69 @@ export function useChat(): UseChatReturn {
   const [imgUrl, setImgUrl] = useState<string | null>(null)
 
   /**
+   * 加载会话消息
+   */
+  const loadConversation = useCallback(async (cid: string) => {
+    try {
+      const data = await getJson<{ messages: Message[] }>(`/api/chat?conversationId=${cid}`)
+      setMessages(data.messages ?? [])
+      setConversationId(cid)
+      localStorage.setItem('cid', cid)
+    } catch (error) {
+      console.error('加载消息历史失败:', error)
+      setMessages([])
+    }
+  }, [])
+
+  /**
    * 初始化会话
    *
    * 在组件挂载时：
-   * 1. 从localStorage获取或创建新的会话ID
-   * 2. 加载该会话的历史消息
+   * 1. 优先从数据库加载最新的会话
+   * 2. 如果没有会话，则从localStorage恢复或创建新会话
    */
   useEffect(() => {
-    // 从localStorage获取会话ID，如果没有则创建新的
-    const storedCid = localStorage.getItem('cid')
-    const cid = storedCid || crypto.randomUUID()
+    async function init() {
+      try {
+        // 先尝试从数据库加载所有会话
+        const conversationsData = await getJson<{ conversations: Conversation[] }>(
+          '/api/conversations'
+        )
+        const conversations = conversationsData.conversations ?? []
 
-    // 保存到localStorage，以便刷新页面后恢复会话
-    localStorage.setItem('cid', cid)
-    setConversationId(cid)
+        if (conversations.length > 0) {
+          // 如果有历史会话，加载最新的一个
+          const latestConv = conversations[0]
+          await loadConversation(latestConv.id)
+        } else {
+          // 如果没有历史会话，尝试从localStorage恢复
+          const storedCid = localStorage.getItem('cid')
+          if (storedCid) {
+            try {
+              await loadConversation(storedCid)
+            } catch {
+              // 如果localStorage的ID无效，创建新会话
+              await createNewConversation()
+            }
+          } else {
+            // 创建新会话
+            await createNewConversation()
+          }
+        }
+      } catch (error) {
+        console.error('初始化会话失败:', error)
+        // 如果都失败了，尝试从localStorage恢复
+        const storedCid = localStorage.getItem('cid')
+        if (storedCid) {
+          await loadConversation(storedCid)
+        } else {
+          await createNewConversation()
+        }
+      }
+    }
 
-    // 加载会话的历史消息
-    getJson<{ messages: Message[] }>(`/api/chat?conversationId=${cid}`)
-      .then((data) => {
-        setMessages(data.messages ?? [])
-      })
-      .catch((error) => {
-        console.error('加载消息历史失败:', error)
-        // 如果加载失败，初始化为空列表
-        setMessages([])
-      })
+    init()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   /**
@@ -190,6 +232,34 @@ export function useChat(): UseChatReturn {
     }
   }
 
+  /**
+   * 切换会话
+   *
+   * @param newConversationId - 要切换到的会话ID
+   */
+  const switchConversation = useCallback(
+    async (newConversationId: string) => {
+      if (newConversationId === conversationId) return
+      setImgUrl(null) // 切换会话时清空图片
+      await loadConversation(newConversationId)
+    },
+    [conversationId, loadConversation, setImgUrl]
+  )
+
+  /**
+   * 创建新会话
+   */
+  const createNewConversation = useCallback(async () => {
+    if (messages.length === 0) return
+    try {
+      const data = await postJson<{ conversation: Conversation }>('/api/conversations', {})
+      await loadConversation(data.conversation.id)
+    } catch (error) {
+      console.error('创建新会话失败:', error)
+      alert('创建新会话失败，请稍后重试')
+    }
+  }, [messages, loadConversation])
+
   // 返回所有状态和函数
   return {
     conversationId,
@@ -199,5 +269,7 @@ export function useChat(): UseChatReturn {
     setImgUrl,
     send,
     lastAssets,
+    switchConversation,
+    createNewConversation,
   }
 }

@@ -12,6 +12,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { ensureConversation, addMessage, listMessages } from '@/lib/db'
 import type { Message } from '@/types'
 import { generateAssets } from '@/services/aiService'
+export const runtime = 'nodejs'
 
 /**
  * POST /api/chat
@@ -55,10 +56,10 @@ export async function POST(req: NextRequest) {
     }
 
     // 确保会话存在（如果提供了ID则获取，否则创建新会话）
-    const conv = ensureConversation(conversationId, title ?? null)
+    const conv = await ensureConversation(conversationId, title ?? null)
 
     // 保存用户消息
-    addMessage({
+    await addMessage({
       conversationId: conv.id,
       role: 'user',
       content: text,
@@ -67,7 +68,7 @@ export async function POST(req: NextRequest) {
     })
 
     // 获取对话历史（用于AI生成时的上下文）
-    const history = listMessages(conv.id).map((m: Message) => ({
+    const history = (await listMessages(conv.id)).map((m: Message) => ({
       role: m.role,
       content: m.content,
     }))
@@ -76,7 +77,7 @@ export async function POST(req: NextRequest) {
     const assets = await generateAssets(text, history, imageUrl)
 
     // 保存AI生成的回复消息
-    const assistantMessage = addMessage({
+    const assistantMessage = await addMessage({
       conversationId: conv.id,
       role: 'assistant',
       content: JSON.stringify(assets), // 将素材数据序列化为JSON字符串
@@ -130,7 +131,7 @@ export async function GET(req: NextRequest) {
     }
 
     // 获取会话的所有消息
-    const history = listMessages(conversationId)
+    const history = await listMessages(conversationId)
 
     // 返回消息列表
     return NextResponse.json({ messages: history })

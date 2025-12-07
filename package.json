@@ -13,6 +13,8 @@
     "lint-staged": "lint-staged"
   },
   "dependencies": {
+    "@prisma/adapter-libsql": "^7.1.0",
+    "@prisma/client": "^7.1.0",
     "aws4": "^1.13.2",
     "next": "16.0.3",
     "react": "19.2.0",
@@ -28,12 +30,12 @@
     "husky": "^9.1.7",
     "lint-staged": "^16.2.7",
     "prettier": "^3.7.3",
+    "prisma": "^7.1.0",
     "stylelint": "^16.26.1",
     "stylelint-config-standard": "^39.0.1",
     "tailwindcss": "^4",
     "typescript": "^5"
-  }
-  ,
+  },
   "lint-staged": {
     "*.{js,ts,tsx}": [
       "eslint --fix",

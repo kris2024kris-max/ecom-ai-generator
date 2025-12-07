@@ -1,3 +1,12 @@
+datasource db {
+  provider = "sqlite"
+}
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
 // 简单的会话模型
 model Conversation {
   id        String    @id @default(cuid())
@@ -13,5 +22,6 @@ model Message {
   content        String       // 文本内容
   messageType    String       // "text" | "image_upload" | "generated_assets"
   metaData       Json?        // 存储生成的 JSON 结构数据 (标题, 卖点等)
+  createdAt      DateTime     @default(now())
   conversation   Conversation @relation(fields: [conversationId], references: [id])
 }
