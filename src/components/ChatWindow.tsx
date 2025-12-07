@@ -124,35 +124,14 @@ export default function ChatWindow() {
       <div className="max-w-5xl mx-auto px-4 py-8 md:px-6 lg:px-8">
         {/* 头部区域 */}
         <div className="mb-8 animate-fade-in">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6">
             <div>
               <h1 className="text-3xl md:text-4xl font-bold mb-2 text-primary">电商素材智能生成</h1>
               <p className="text-gray-600 text-sm md:text-base">
                 基于AI技术，快速生成商品标题、卖点、氛围与短视频脚本
               </p>
             </div>
-            <Uploader onImage={handleImageUpload} uploading={uploading} />
           </div>
-
-          {/* 已上传的图片预览 */}
-          {imgUrl && (
-            <div className="card p-4 mb-6 animate-fade-in relative group">
-              <button
-                onClick={() => setImgUrl(null)}
-                className="absolute top-2 right-2 w-8 h-8 rounded-full bg-white hover:bg-gray-50 border border-gray-200 flex items-center justify-center text-gray-700 opacity-0 group-hover:opacity-100 transition-opacity"
-                aria-label="删除图片"
-              >
-                ×
-              </button>
-              <div className="relative overflow-hidden rounded-lg">
-                <img
-                  src={imgUrl}
-                  alt="已上传的商品图片"
-                  className="w-full max-h-80 object-contain rounded-lg"
-                />
-              </div>
-            </div>
-          )}
         </div>
 
         {/* 消息列表区域 */}
@@ -181,47 +160,82 @@ export default function ChatWindow() {
               </p>
             </div>
           ) : (
-            messages.map((message, index) => (
-              <div
-                key={message.id}
-                className={`message-bubble animate-fade-in ${
-                  message.role === 'user' ? 'flex justify-end' : 'flex justify-start'
-                }`}
-                style={{ animationDelay: `${index * 0.1}s` }}
-              >
-                <div
-                  className={`max-w-[85%] md:max-w-[75%] ${
-                    message.role === 'user'
-                      ? 'message-bubble-user px-4 py-3'
-                      : 'message-bubble-assistant px-4 py-3'
-                  }`}
-                >
-                  {/* 消息角色标签 */}
+            messages.map((message, index) => {
+              // 查找对应的用户消息中的图片URL（用于AI消息显示主图）
+              const getUserImageUrl = () => {
+                if (message.role === 'assistant' && message.messageType === 'generated_assets') {
+                  // 向前查找最近的一条用户消息
+                  for (let i = index - 1; i >= 0; i--) {
+                    if (messages[i].role === 'user' && messages[i].metaData?.imageUrl) {
+                      return messages[i].metaData.imageUrl
+                    }
+                  }
+                }
+                return null
+              }
+
+              const userImageUrl = getUserImageUrl()
+
+              return (
+                <div key={message.id}>
                   <div
-                    className={`text-xs font-medium mb-2 ${
-                      message.role === 'user' ? 'text-white/90' : 'text-blue-600'
+                    className={`message-bubble animate-fade-in ${
+                      message.role === 'user' ? 'flex justify-end' : 'flex justify-start'
                     }`}
+                    style={{ animationDelay: `${index * 0.1}s` }}
                   >
-                    {message.role === 'user' ? '👤 你' : '🤖 AI助手'}
-                  </div>
-
-                  {/* 消息内容 */}
-                  <div className={`${message.role === 'user' ? 'text-white' : 'text-gray-700'}`}>
-                    {/* 如果是普通文本消息，显示文本内容 */}
-                    {message.messageType !== 'generated_assets' && (
-                      <div className="whitespace-pre-wrap break-words leading-relaxed">
-                        {message.content}
+                    <div
+                      className={`max-w-[85%] md:max-w-[75%] ${
+                        message.role === 'user'
+                          ? 'message-bubble-user px-4 py-3'
+                          : 'message-bubble-assistant px-4 py-3'
+                      }`}
+                    >
+                      {/* 消息角色标签 */}
+                      <div
+                        className={`text-xs font-medium mb-2 ${
+                          message.role === 'user' ? 'text-white/90' : 'text-blue-600'
+                        }`}
+                      >
+                        {message.role === 'user' ? '👤 你' : '🤖 AI助手'}
                       </div>
-                    )}
 
-                    {/* 如果是生成的素材消息，显示素材卡片 */}
-                    {message.messageType === 'generated_assets' && message.metaData && (
-                      <AssetCard data={message.metaData} />
-                    )}
+                      {/* 消息内容 */}
+                      <div
+                        className={`${message.role === 'user' ? 'text-white' : 'text-gray-700'}`}
+                      >
+                        {/* 如果是普通文本消息，显示文本内容 */}
+                        {message.messageType !== 'generated_assets' && (
+                          <div className="whitespace-pre-wrap break-words leading-relaxed">
+                            {message.content}
+                          </div>
+                        )}
+
+                        {/* 如果是生成的素材消息，显示素材卡片 */}
+                        {message.messageType === 'generated_assets' && message.metaData && (
+                          <AssetCard data={message.metaData} imageUrl={userImageUrl} />
+                        )}
+                      </div>
+                    </div>
                   </div>
+
+                  {/* 在用户消息气泡下方显示上传的图片 */}
+                  {message.role === 'user' && message.metaData?.imageUrl && (
+                    <div className="mt-2 flex justify-end animate-fade-in">
+                      <div className="max-w-[85%] md:max-w-[75%]">
+                        <div className="relative overflow-hidden rounded-lg">
+                          <img
+                            src={message.metaData.imageUrl}
+                            alt="上传的商品图片"
+                            className="w-full max-h-64 object-contain rounded-lg"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))
+              )
+            })
           )}
 
           {/* 加载状态指示器 */}
@@ -292,7 +306,9 @@ export default function ChatWindow() {
         {/* 输入区域 */}
         <div className="sticky bottom-0 bg-white border-t border-gray-200 -mx-4 px-4 py-4 md:-mx-6 md:px-6 lg:-mx-8 lg:px-8">
           <div className="max-w-5xl mx-auto">
-            <div className="flex gap-3 items-end">
+            <div className="flex gap-3 items-center">
+              {/* 上传按钮放在输入框左侧 */}
+              <Uploader onImage={handleImageUpload} uploading={uploading} />
               <div className="flex-1 relative">
                 <input
                   ref={inputRef}
@@ -346,6 +362,22 @@ export default function ChatWindow() {
                 )}
               </button>
             </div>
+            {/* 显示当前待上传的图片预览 */}
+            {imgUrl && (
+              <div className="mt-3 flex items-center gap-2">
+                <div className="relative w-16 h-16 rounded-lg overflow-hidden border border-gray-200">
+                  <img src={imgUrl} alt="待上传的图片" className="w-full h-full object-cover" />
+                  <button
+                    onClick={() => setImgUrl(null)}
+                    className="absolute top-0 right-0 w-5 h-5 bg-red-500 text-white rounded-bl-lg flex items-center justify-center text-xs hover:bg-red-600"
+                    aria-label="删除图片"
+                  >
+                    ×
+                  </button>
+                </div>
+                <span className="text-xs text-gray-500">已选择图片，发送消息时将自动上传</span>
+              </div>
+            )}
           </div>
         </div>
       </div>
