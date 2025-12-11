@@ -138,11 +138,11 @@ export default function AssetCard({ data, imageUrl }: AssetCardProps) {
           const d = await r.json()
           setHeroUrl(d.url)
         } else {
-          const dataUrl = await composeLocal(String(imageUrl), infoText, primary)
+          const dataUrl = await composeLocal(imageUrl, overlay, primary)
           setHeroUrl(dataUrl)
         }
       } catch {
-        const dataUrl = await composeLocal(String(imageUrl), infoText, primary)
+        const dataUrl = await composeLocal(imageUrl, overlay, primary)
         setHeroUrl(dataUrl)
       } finally {
         setGenerating(false)
@@ -171,11 +171,32 @@ export default function AssetCard({ data, imageUrl }: AssetCardProps) {
           </div>
           {heroUrl ? (
             <div className="relative overflow-hidden rounded-lg border border-gray-200">
-              <img
-                src={heroUrl}
-                alt="商品主图"
-                className="w-full max-h-80 object-contain rounded-lg"
-              />
+              {/* --- 开始复制（修复版） --- */}
+              {/* 外面的壳子：去掉高度限制，只负责定位 */}
+              <div className="relative w-full rounded-lg overflow-hidden group border border-gray-100 bg-gray-50 flex items-center justify-center">
+                {/* 图片本体：恢复你原来的 max-h-80 设置 */}
+                <img
+                  src={heroUrl}
+                  alt="商品主图"
+                  // 这里改回了 max-h-80，并去掉了 h-full
+                  className="w-full max-h-80 object-contain"
+                />
+
+                {/* ✨ 抖音风格水印（保持不变） ✨ */}
+                <div className="absolute bottom-3 right-3 z-10 flex items-center gap-1.5 px-2.5 py-1.5 bg-black/60 backdrop-blur-md rounded-full border border-white/10 shadow-lg select-none pointer-events-none">
+                  {/* 模拟抖音 Logo 红点 */}
+                  <div className="relative w-2.5 h-2.5 flex items-center justify-center">
+                    <div className="absolute w-full h-full bg-rose-500 rounded-full opacity-75 animate-pulse"></div>
+                    <div className="relative w-1.5 h-1.5 bg-rose-600 rounded-full"></div>
+                  </div>
+
+                  {/* 水印文字 */}
+                  <span className="text-[10px] text-white font-medium tracking-wide">
+                    抖音电商前端训练营
+                  </span>
+                </div>
+              </div>
+              {/* --- 结束复制 --- */}
             </div>
           ) : (
             <div className="w-full h-48 bg-gray-100 rounded-lg flex items-center justify-center">
