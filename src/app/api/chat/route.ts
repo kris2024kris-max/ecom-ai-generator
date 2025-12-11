@@ -9,7 +9,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { ensureConversation, addMessage, listMessages } from '@/lib/db'
+import { ensureConversation, addMessage, listMessages, getConversation } from '@/lib/db'
 import type { Message } from '@/types'
 import { generateAssets } from '@/services/aiService'
 export const runtime = 'nodejs'
@@ -49,14 +49,24 @@ export async function POST(req: NextRequest) {
     const text = body.text as string
     const title = body.title as string | undefined
     const imageUrl = body.imageUrl as string | undefined
+    const clientId = req.headers.get('x-client-id') || title || null
 
     // 验证必填字段
     if (!text || typeof text !== 'string' || text.trim().length === 0) {
       return NextResponse.json({ error: '消息内容不能为空' }, { status: 400 })
     }
 
-    // 确保会话存在（如果提供了ID则获取，否则创建新会话）
-    const conv = await ensureConversation(conversationId, title ?? null)
+    // 校验/创建会话（按客户端隔离）
+    if (conversationId) {
+      const existing = await getConversation(conversationId)
+      if (!existing || (clientId && existing.title !== clientId)) {
+        return NextResponse.json({ error: '会话不存在或无权访问' }, { status: 403 })
+      }
+    }
+    const conv = await ensureConversation(
+      conversationId,
+      (clientId ?? title ?? null) as string | null
+    )
 
     // 保存用户消息
     await addMessage({
@@ -124,12 +134,20 @@ export async function GET(req: NextRequest) {
     // 从URL查询参数中获取会话ID
     const { searchParams } = new URL(req.url)
     const conversationId = searchParams.get('conversationId')
+    const clientId = req.headers.get('x-client-id') || null
 
     // 验证必填参数
     if (!conversationId) {
       return NextResponse.json({ error: '缺少必要参数：conversationId' }, { status: 400 })
     }
 
+    // 客户端隔离校验
+    if (clientId) {
+      const existing = await getConversation(conversationId)
+      if (!existing || existing.title !== clientId) {
+        return NextResponse.json({ error: '无权访问该会话' }, { status: 403 })
+      }
+    }
     // 获取会话的所有消息
     const history = await listMessages(conversationId)
 

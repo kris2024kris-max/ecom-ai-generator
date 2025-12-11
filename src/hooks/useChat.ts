@@ -70,12 +70,23 @@ export function useChat(): UseChatReturn {
   // 图片URL状态
   const [imgUrl, setImgUrl] = useState<string | null>(null)
 
+  const [clientId] = useState<string>(() => {
+    if (typeof window === 'undefined') return ''
+    const existing = localStorage.getItem('clientId')
+    if (existing && existing.length > 0) return existing
+    const cid = crypto.randomUUID()
+    localStorage.setItem('clientId', cid)
+    return cid
+  })
+
   /**
    * 加载会话消息
    */
   const loadConversation = useCallback(async (cid: string) => {
     try {
-      const data = await getJson<{ messages: Message[] }>(`/api/chat?conversationId=${cid}`)
+      const data = await getJson<{ messages: Message[] }>(`/api/chat?conversationId=${cid}`, {
+        'X-Client-Id': clientId,
+      })
       setMessages(data.messages ?? [])
       setConversationId(cid)
       localStorage.setItem('cid', cid)
@@ -97,7 +108,8 @@ export function useChat(): UseChatReturn {
       try {
         // 先尝试从数据库加载所有会话
         const conversationsData = await getJson<{ conversations: Conversation[] }>(
-          '/api/conversations'
+          '/api/conversations',
+          { 'X-Client-Id': clientId }
         )
         const conversations = conversationsData.conversations ?? []
 
@@ -171,20 +183,25 @@ export function useChat(): UseChatReturn {
       return
     }
 
-    // 如果没有会话ID，无法发送消息
-    if (!conversationId) {
-      console.error('会话ID未初始化')
-      return
-    }
-
     try {
       // 设置加载状态
       setLoading(true)
 
+      let cid = conversationId
+      if (!cid) {
+        const created = await postJson<{ conversation: Conversation }>(
+          '/api/conversations',
+          { title: clientId },
+          { 'X-Client-Id': clientId }
+        )
+        cid = created.conversation.id
+        await loadConversation(cid)
+      }
+
       // 创建临时用户消息（用于立即显示在UI中）
       const tempUserMessage: Message = {
         id: crypto.randomUUID(),
-        conversationId,
+        conversationId: cid,
         role: 'user',
         content: text,
         messageType: imgUrl ? 'image_upload' : 'text',
@@ -196,11 +213,16 @@ export function useChat(): UseChatReturn {
       setMessages((prev) => [...prev, tempUserMessage])
 
       // 发送消息到服务器并获取AI回复
-      const data = await postJson<{ message: Message }>('/api/chat', {
-        conversationId,
-        text,
-        imageUrl: imgUrl ?? undefined,
-      })
+      const data = await postJson<{ message: Message }>(
+        '/api/chat',
+        {
+          conversationId: cid,
+          text,
+          imageUrl: imgUrl ?? undefined,
+          title: clientId,
+        },
+        { 'X-Client-Id': clientId }
+      )
 
       // 更新消息列表，移除临时消息，添加服务器返回的完整消息和AI回复
       setMessages((prev) => {
@@ -250,9 +272,12 @@ export function useChat(): UseChatReturn {
    * 创建新会话
    */
   const createNewConversation = useCallback(async () => {
-    if (messages.length === 0) return
     try {
-      const data = await postJson<{ conversation: Conversation }>('/api/conversations', {})
+      const data = await postJson<{ conversation: Conversation }>(
+        '/api/conversations',
+        { title: clientId },
+        { 'X-Client-Id': clientId }
+      )
       await loadConversation(data.conversation.id)
     } catch (error) {
       console.error('创建新会话失败:', error)

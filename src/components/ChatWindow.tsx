@@ -44,7 +44,10 @@ export default function ChatWindow() {
    */
   const loadConversations = async () => {
     try {
-      const data = await getJson<{ conversations: Conversation[] }>('/api/conversations')
+      const clientId = typeof window === 'undefined' ? '' : localStorage.getItem('clientId') || ''
+      const data = await getJson<{ conversations: Conversation[] }>('/api/conversations', {
+        'X-Client-Id': clientId,
+      })
       setConversations(data.conversations ?? [])
     } catch (error) {
       console.error('加载会话列表失败:', error)
@@ -363,14 +366,12 @@ export default function ChatWindow() {
                     {/* 在用户消息气泡下方显示上传的图片 */}
                     {message.role === 'user' && message.metaData?.imageUrl && (
                       <div className="mt-2 flex justify-end animate-fade-in">
-                        <div className="max-w-[85%] md:max-w-[75%]">
-                          <div className="relative overflow-hidden rounded-lg">
-                            <img
-                              src={message.metaData.imageUrl}
-                              alt="上传的商品图片"
-                              className="w-full max-h-64 object-contain rounded-lg"
-                            />
-                          </div>
+                        <div className="max-w-[85%] md:max-w-[75%] ml-auto">
+                          <img
+                            src={message.metaData.imageUrl}
+                            alt="上传的商品图片"
+                            className="w-full max-h-64 object-contain"
+                          />
                         </div>
                       </div>
                     )}
@@ -510,8 +511,8 @@ export default function ChatWindow() {
               </div>
               {/* 显示当前待上传的图片预览 */}
               {imgUrl && (
-                <div className="mt-3 flex items-center gap-2">
-                  <div className="relative w-16 h-16 rounded-lg overflow-hidden border border-gray-200">
+                <div className="mt-3 flex items-center gap-2 justify-end">
+                  <div className="relative w-16 h-16 rounded-lg overflow-hidden ml-auto">
                     <img src={imgUrl} alt="待上传的图片" className="w-full h-full object-cover" />
                     <button
                       onClick={() => setImgUrl(null)}

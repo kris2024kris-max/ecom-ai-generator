@@ -16,7 +16,7 @@ function prismaMessageToMessage(msg: unknown): Message {
     content: string
     messageType: string
     metaData?: unknown
-    createdAt: unknown
+    createdAt: string | number | Date
   }
   return {
     id: m.id,
@@ -30,7 +30,7 @@ function prismaMessageToMessage(msg: unknown): Message {
 }
 
 function prismaConversationToConversation(conv: unknown): Conversation {
-  const c = conv as { id: string; createdAt: unknown; title: string | null }
+  const c = conv as { id: string; createdAt: string | number | Date; title: string | null }
   return {
     id: c.id,
     createdAt: dateToTimestamp(c.createdAt),
@@ -69,6 +69,17 @@ export async function listConversationsWithMessages(): Promise<Conversation[]> {
   await ensureDatabaseInitialized()
   const convs = await prisma.conversation.findMany({
     where: { messages: { some: {} } },
+    orderBy: { createdAt: 'desc' },
+  })
+  return convs.map(prismaConversationToConversation)
+}
+
+export async function listConversationsForClientWithMessages(
+  clientId: string
+): Promise<Conversation[]> {
+  await ensureDatabaseInitialized()
+  const convs = await prisma.conversation.findMany({
+    where: { title: clientId, messages: { some: {} } },
     orderBy: { createdAt: 'desc' },
   })
   return convs.map(prismaConversationToConversation)

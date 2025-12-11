@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { listConversationsWithMessages, ensureConversation } from '@/lib/db'
+import { listConversationsForClientWithMessages, ensureConversation } from '@/lib/db'
 
 export const runtime = 'nodejs'
 
 export async function GET(req: NextRequest) {
   try {
-    const conversations = await listConversationsWithMessages()
+    const clientId = req.headers.get('x-client-id') || ''
+    const conversations = clientId ? await listConversationsForClientWithMessages(clientId) : []
     return NextResponse.json({ conversations })
   } catch (error: unknown) {
     console.error('获取会话列表错误:', error)
