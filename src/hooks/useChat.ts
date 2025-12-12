@@ -82,19 +82,22 @@ export function useChat(): UseChatReturn {
   /**
    * 加载会话消息
    */
-  const loadConversation = useCallback(async (cid: string) => {
-    try {
-      const data = await getJson<{ messages: Message[] }>(`/api/chat?conversationId=${cid}`, {
-        'X-Client-Id': clientId,
-      })
-      setMessages(data.messages ?? [])
-      setConversationId(cid)
-      localStorage.setItem('cid', cid)
-    } catch (error) {
-      console.error('加载消息历史失败:', error)
-      setMessages([])
-    }
-  }, [])
+  const loadConversation = useCallback(
+    async (cid: string) => {
+      try {
+        const data = await getJson<{ messages: Message[] }>(`/api/chat?conversationId=${cid}`, {
+          'X-Client-Id': clientId,
+        })
+        setMessages(data.messages ?? [])
+        setConversationId(cid)
+        localStorage.setItem('cid', cid)
+      } catch (error) {
+        console.error('加载消息历史失败:', error)
+        setMessages([])
+      }
+    },
+    [clientId]
+  )
 
   /**
    * 初始化会话
@@ -283,7 +286,7 @@ export function useChat(): UseChatReturn {
       console.error('创建新会话失败:', error)
       alert('创建新会话失败，请稍后重试')
     }
-  }, [messages, loadConversation])
+  }, [loadConversation, clientId])
 
   // 返回所有状态和函数
   return {

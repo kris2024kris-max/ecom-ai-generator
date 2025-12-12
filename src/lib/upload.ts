@@ -109,7 +109,7 @@ function decodeSecretKey(secretAccessKey: string): string {
 export async function uploadBufferToS3Like(buf: Buffer, contentType: string): Promise<string> {
   // 获取配置
   const config = getUploadConfig()
-  const secretAccessKey = config.secretAccessKey
+  const secretAccessKey = decodeSecretKey(config.secretAccessKey)
 
   // 生成唯一的文件键名（文件名）
   // 格式：时间戳-UUID.扩展名
@@ -194,7 +194,7 @@ export interface PresignedPutResult {
 export function createPresignedPut(filename: string, contentType: string): PresignedPutResult {
   // 获取配置
   const config = getUploadConfig()
-  const secretAccessKey = config.secretAccessKey
+  const secretAccessKey = decodeSecretKey(config.secretAccessKey)
 
   // 从文件名中提取扩展名，如果没有则默认为jpg
   const ext = filename.split('.').pop() || 'jpg'

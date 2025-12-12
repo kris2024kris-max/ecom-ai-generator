@@ -138,11 +138,11 @@ export default function AssetCard({ data, imageUrl }: AssetCardProps) {
           const d = await r.json()
           setHeroUrl(d.url)
         } else {
-          const dataUrl = await composeLocal(imageUrl, overlay, primary)
+          const dataUrl = await composeLocal(String(imageUrl), infoText, primary)
           setHeroUrl(dataUrl)
         }
       } catch {
-        const dataUrl = await composeLocal(imageUrl, overlay, primary)
+        const dataUrl = await composeLocal(String(imageUrl), infoText, primary)
         setHeroUrl(dataUrl)
       } finally {
         setGenerating(false)
